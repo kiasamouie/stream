@@ -1,0 +1,46 @@
+<icecast>
+  <location>WSL</location>
+  <admin>admin</admin>
+
+  <limits>
+    <clients>100</clients>
+    <sources>4</sources>
+    <queue-size>524288</queue-size>
+    <client-timeout>30</client-timeout>
+    <header-timeout>15</header-timeout>
+    <source-timeout>10</source-timeout>
+    <burst-on-connect>1</burst-on-connect>
+    <burst-size>65535</burst-size>
+  </limits>
+
+  <authentication>
+    <source-password>hackme</source-password>
+    <relay-password>hackme</relay-password>
+    <admin-user>admin</admin-user>
+    <admin-password>hackme</admin-password>
+  </authentication>
+
+  <hostname>localhost</hostname>
+  <listen-socket>
+    <port>8000</port>
+    <bind-address>127.0.0.1</bind-address>
+  </listen-socket>
+
+  <mount>
+    <mount-name>/live.mp3</mount-name>
+  </mount>
+
+  <paths>
+    <basedir>/usr/share/icecast2</basedir>
+    <logdir>/home/kia/streamlab/logs</logdir>
+    <webroot>/usr/share/icecast2/web</webroot>
+    <adminroot>/usr/share/icecast2/admin</adminroot>
+  </paths>
+
+  <fileserve>1</fileserve>
+  <logging>
+    <accesslog>access.log</accesslog>
+    <errorlog>error.log</errorlog>
+    <loglevel>3</loglevel>
+  </logging>
+</icecast>

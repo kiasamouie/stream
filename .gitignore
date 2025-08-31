@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+.venv/
+venv/
+env/
+
+# Cache + temp
+cache/
+tmp/
+*.swp
+
+# Logs
+logs/
+*.log
+
+# Environment + secrets
+.env
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Output / test streams
+# *.flv
+# *.mp4
+# *.mkv
+# *.wav
+# *.mp3
