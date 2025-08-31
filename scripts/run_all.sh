@@ -1,21 +1,33 @@
-#!/usr/bin/env bash
-set -euo pipefail
-cd "/home/kia/streamlab"
-echo "Installing dependencies (sudo may prompt for your password)..."
-sudo apt-get update
-sudo apt-get install -y ffmpeg icecast2 liquidsoap moreutils python3-pip fonts-dejavu-core tmux
-pip3 install --upgrade yt-dlp requests
+#!/bin/bash
+set -e
 
-echo
-echo "NOTE: Edit /home/kia/streamlab/.env to set SC_PLAYLIST and RTMP_URL before streaming."
-echo
-
-# Start tmux session with 4 windows
 SESSION="streamlab"
-tmux has-session -t "$SESSION" 2>/dev/null && { echo "Session $SESSION already running."; exit 0; }
-tmux new-session -d -s "$SESSION" -n icecast "icecast2 -b -c /home/kia/streamlab/config/icecast.xml"
-sleep 1
-tmux new-window  -t "$SESSION"   -n liquidsoap "liquidsoap /home/kia/streamlab/liquidsoap/soundcloud_radio.liq"
-tmux new-window  -t "$SESSION"   -n feeder "bash -lc 'cd /home/kia/streamlab && set -a && source .env && set +a && python3 feeder/sc_feeder.py'"
-tmux new-window  -t "$SESSION"   -n ffmpeg "bash -lc 'cd /home/kia/streamlab && ./scripts/stream.sh'"
-echo "Started tmux session '$SESSION'. Attach with:  tmux attach -t $SESSION"
+LOGDIR="$HOME/streamlab/logs"
+SCRIPTDIR="$HOME/streamlab/scripts"
+
+mkdir -p "$LOGDIR"
+
+# Kill old session if exists
+tmux has-session -t $SESSION 2>/dev/null && tmux kill-session -t $SESSION
+
+# Create new session
+tmux new-session -d -s $SESSION -n icecast
+
+# Icecast
+tmux send-keys -t $SESSION:0 "cd ~/streamlab && icecast2 -c config/icecast.xml 2>&1 | tee $LOGDIR/icecast.log" C-m
+
+# Liquidsoap
+tmux new-window -t $SESSION -n liquidsoap
+tmux send-keys -t $SESSION:1 "cd ~/streamlab && liquidsoap liquidsoap/soundcloud_radio.liq 2>&1 | tee $LOGDIR/liquidsoap.log" C-m
+
+# Feeder
+tmux new-window -t $SESSION -n feeder
+tmux send-keys -t $SESSION:2 "cd ~/streamlab && set -a && source .env && set +a && python3 feeder/sc_feeder.py 2>&1 | tee $LOGDIR/feeder.log" C-m
+
+# FFmpeg
+tmux new-window -t $SESSION -n ffmpeg
+tmux send-keys -t $SESSION:3 "cd ~/streamlab && ./scripts/stream.sh 2>&1 | tee $LOGDIR/ffmpeg.log" C-m
+
+echo "✅ Streamlab started in tmux session '$SESSION'."
+echo "Use:   tmux attach -t $SESSION   to view."
+echo "Logs:  $LOGDIR/"
