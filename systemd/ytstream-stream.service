@@ -1,0 +1,13 @@
+[Unit]
+Description=YTStream Streaming Service
+After=ytstream-audio.service network.target
+
+[Service]
+ExecStart=/opt/ytstream/svc_stream.sh
+Restart=always
+User=%i
+Environment=DISPLAY=:0
+WorkingDirectory=/opt/ytstream
+
+[Install]
+WantedBy=multi-user.target
