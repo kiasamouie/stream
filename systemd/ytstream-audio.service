@@ -1,13 +1,12 @@
 [Unit]
 Description=YTStream Audio Service
-After=network.target sound.target
+After=pulseaudio.service
+Requires=pulseaudio.service
 
 [Service]
+WorkingDirectory=/opt/ytstream
 ExecStart=/opt/ytstream/svc_audio.sh
 Restart=always
-User=%i
-Environment=DISPLAY=:0
-WorkingDirectory=/opt/ytstream
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target

@@ -1,12 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Load environment variables
 set -a
 source "$(dirname "$0")/.env"
 set +a
+export PULSE_SERVER
 
 echo "[svc_stream] $(date -Is) starting"
+
+# Wait until system PulseAudio is up
+until pactl info >/dev/null 2>&1; do
+  echo "[svc_stream] Waiting for PulseAudio system daemon..."
+  sleep 2
+done
 
 # Ensure null sink exists
 if ! pactl list short sinks | grep -q "$NULL_SINK_NAME"; then

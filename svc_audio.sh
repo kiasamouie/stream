@@ -1,26 +1,31 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Load environment variables
 set -a
 source "$(dirname "$0")/.env"
 set +a
+export PULSE_SERVER
 
 PLAYLIST_URL="${1:-${PLAYLIST_URL:-}}"
 if [[ -z "$PLAYLIST_URL" && -f "$PLAYLIST_FILE" ]]; then
   PLAYLIST_URL="$(<"$PLAYLIST_FILE")"
 fi
 if [[ -z "$PLAYLIST_URL" ]]; then
-  echo "Error: No playlist URL provided. Put it in $PLAYLIST_FILE, set PLAYLIST_URL, or pass as arg." >&2
+  echo "Error: No playlist URL provided." >&2
   exit 1
 fi
 
-# make sure the null sink exists
+# Wait until system PulseAudio is up
+until pactl info >/dev/null 2>&1; do
+  echo "[svc_audio] Waiting for PulseAudio system daemon..."
+  sleep 2
+done
+
+# Ensure null sink exists (system mode)
 if ! pactl list short sinks | grep -q "$NULL_SINK_NAME"; then
   pactl load-module module-null-sink sink_name="$NULL_SINK_NAME" sink_properties=device.description="YTStream" >/dev/null
 fi
 
-# just play audio to null sink + run Lua metadata script
 mpv \
   --no-config \
   --no-video \
