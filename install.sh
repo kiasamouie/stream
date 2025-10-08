@@ -30,56 +30,51 @@ sudo apt-get install -y \
   yt-dlp \
   imagemagick \
   curl \
-  pulseaudio \
-  pulseaudio-utils \
+  alsa-utils \
   fonts-dejavu-core \
   nginx \
-  dos2unix
+  dos2unix \
+  dbus-user-session
 
 # -----------------------------
-# 3. Configure PulseAudio (user mode)
+# 3. Configure ALSA Loopback
 # -----------------------------
-echo "[ytstream] Configuring PulseAudio user mode..."
+echo "[ytstream] Configuring ALSA loopback..."
 
-# Ensure user exists
-if ! id "$SERVICE_USER" &>/dev/null; then
-  echo "[ytstream] Creating user $SERVICE_USER..."
-  sudo useradd -m -s /bin/bash "$SERVICE_USER"
+# Load ALSA loopback module
+if ! lsmod | grep -q snd_aloop; then
+  sudo modprobe snd-aloop || true
 fi
 
-USER_HOME="/home/$SERVICE_USER"
-PULSE_CONF_DIR="$USER_HOME/.config/pulse"
-SYSTEMD_USER_DIR="$USER_HOME/.config/systemd/user"
-
-sudo -u "$SERVICE_USER" mkdir -p "$PULSE_CONF_DIR" "$SYSTEMD_USER_DIR"
-
-# Write PulseAudio configs
-echo "[ytstream] Writing PulseAudio configuration..."
-sudo tee "$PULSE_CONF_DIR/default.pa" >/dev/null <<'EOF'
-.include /etc/pulse/default.pa
-load-module module-null-sink sink_name=YTStream sink_properties=device.description=YTStream
-EOF
-
-sudo tee "$PULSE_CONF_DIR/client.conf" >/dev/null <<'EOF'
-autospawn = yes
-daemon-binary = /usr/bin/pulseaudio
-enable-shm = yes
-EOF
-
-# Copy PulseAudio systemd service
-if [[ -f "$REPO_DIR/systemd/pulseaudio.service" ]]; then
-  sudo cp "$REPO_DIR/systemd/pulseaudio.service" "$SYSTEMD_USER_DIR/"
-else
-  echo "[ytstream] WARNING: pulseaudio.service not found in $REPO_DIR/systemd/"
+# Verify the module loaded
+if ! lsmod | grep -q snd_aloop; then
+  echo "[ytstream] snd-aloop module not found, installing kernel extras..."
+  sudo apt-get install -y linux-modules-extra-$(uname -r)
+  sudo modprobe snd-aloop
 fi
 
-sudo chown -R "$SERVICE_USER":"$SERVICE_USER" "$PULSE_CONF_DIR" "$SYSTEMD_USER_DIR"
+# Persist across reboots
+echo "snd-aloop" | sudo tee /etc/modules-load.d/snd-aloop.conf >/dev/null
 
-# Enable lingering and start PulseAudio
-sudo loginctl enable-linger "$SERVICE_USER"
-sudo -u "$SERVICE_USER" systemctl --user daemon-reload || true
-sudo -u "$SERVICE_USER" systemctl --user enable pulseaudio.service || true
-sudo -u "$SERVICE_USER" systemctl --user start pulseaudio.service || true
+# Configure ALSA loopback parameters
+sudo tee /etc/modprobe.d/alsa-loopback.conf >/dev/null <<'EOF'
+options snd-aloop index=0 enable=1 id=Loopback pcm_substreams=2
+EOF
+
+# Reload module with new parameters
+sudo modprobe -r snd-aloop || true
+sudo modprobe snd-aloop
+
+# Add both the installing user and service user to the audio group
+if ! getent group audio >/dev/null; then
+  echo "[ytstream] Creating 'audio' group..."
+  sudo groupadd --system audio
+fi
+
+sudo usermod -aG audio "$USER" || true
+if id "$SERVICE_USER" &>/dev/null; then
+  sudo usermod -aG audio "$SERVICE_USER" || true
+fi
 
 # -----------------------------
 # 4. Create application directory
@@ -118,6 +113,12 @@ fi
 # 5. Ownership & permissions
 # -----------------------------
 echo "[ytstream] Setting ownership and permissions..."
+if ! id "$SERVICE_USER" &>/dev/null; then
+  echo "[ytstream] Creating user $SERVICE_USER..."
+  sudo useradd -m -s /bin/bash "$SERVICE_USER"
+  sudo usermod -aG audio "$SERVICE_USER"
+fi
+
 sudo chown -R "$SERVICE_USER":"$SERVICE_USER" "$APP_DIR"
 sudo chmod -R u+rwX,go+rX "$APP_DIR/assets"
 
@@ -150,35 +151,40 @@ sudo nginx -t
 sudo systemctl reload nginx
 
 # -----------------------------
-# 8. Install systemd user services
+# 8. Install systemd services
 # -----------------------------
-echo "[ytstream] Installing user services for ytstream..."
+echo "[ytstream] Installing systemd services..."
 
-for svc in pulseaudio ytstream-audio ytstream-stream; do
-  if [[ -f "$REPO_DIR/systemd/$svc.service" ]]; then
-    sudo cp "$REPO_DIR/systemd/$svc.service" "$SYSTEMD_USER_DIR/"
-    sudo chown "$SERVICE_USER":"$SERVICE_USER" "$SYSTEMD_USER_DIR/$svc.service"
+SYSTEMD_SRC_DIR="$REPO_DIR/systemd"
+SYSTEMD_DST_DIR="/etc/systemd/system"
+
+for svc in ytstream-audio ytstream-stream; do
+  if [[ -f "$SYSTEMD_SRC_DIR/$svc.service" ]]; then
+    sudo cp "$SYSTEMD_SRC_DIR/$svc.service" "$SYSTEMD_DST_DIR/"
+    sudo chown root:root "$SYSTEMD_DST_DIR/$svc.service"
+    sudo chmod 644 "$SYSTEMD_DST_DIR/$svc.service"
   else
     echo "[ytstream] WARNING: Missing service file $svc.service"
   fi
 done
 
-# Enable all user-level services
-sudo -u "$SERVICE_USER" bash -c '
-  systemctl --user daemon-reload
-  systemctl --user enable pulseaudio.service ytstream-audio.service ytstream-stream.service
-  systemctl --user restart pulseaudio.service ytstream-audio.service ytstream-stream.service
-'
+sudo systemctl daemon-reload
+sudo systemctl enable ytstream-audio.service ytstream-stream.service
+sudo systemctl restart ytstream-audio.service ytstream-stream.service
 
 # -----------------------------
 # 9. Done
 # -----------------------------
 echo "[ytstream] ✅ Installation complete!"
 echo
-echo "PulseAudio, ytstream-audio, and ytstream-stream are now configured."
+echo "ALSA loopback configured and persistent."
+echo "ytstream-audio and ytstream-stream are installed as system services."
 echo "All run as user: $SERVICE_USER"
 echo
 echo "Check service status with:"
-echo "  sudo -u $SERVICE_USER systemctl --user status pulseaudio"
-echo "  sudo -u $SERVICE_USER systemctl --user status ytstream-audio"
-echo "  sudo -u $SERVICE_USER systemctl --user status ytstream-stream"
+echo "  systemctl status ytstream-audio"
+echo "  systemctl status ytstream-stream"
+echo
+echo "Verify ALSA loopback:"
+echo "  aplay -l"
+echo "  arecord -l"

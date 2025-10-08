@@ -1,9 +1,8 @@
 [Unit]
 Description=YTStream Audio Service
-After=pulseaudio.service
-Requires=pulseaudio.service
 
 [Service]
+User=ytstream
 WorkingDirectory=/opt/ytstream
 ExecStart=/opt/ytstream/svc_audio.sh
 Restart=always

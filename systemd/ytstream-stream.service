@@ -1,8 +1,8 @@
 [Unit]
 Description=YTStream Streaming Service
-After=ytstream-audio.service default.target
 
 [Service]
+User=ytstream
 WorkingDirectory=/opt/ytstream
 ExecStart=/opt/ytstream/svc_stream.sh
 Restart=always

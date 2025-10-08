@@ -4,20 +4,14 @@ set -euo pipefail
 set -a
 source "$(dirname "$0")/.env"
 set +a
-export PULSE_SERVER
 
 echo "[svc_stream] $(date -Is) starting"
 
-# Wait until system PulseAudio is up
-until pactl info >/dev/null 2>&1; do
-  echo "[svc_stream] Waiting for PulseAudio system daemon..."
+# Wait for ALSA Loopback device
+until arecord -l | grep -q "Loopback"; do
+  echo "[svc_stream] Waiting for ALSA Loopback device..."
   sleep 2
 done
-
-# Ensure null sink exists
-if ! pactl list short sinks | grep -q "$NULL_SINK_NAME"; then
-  pactl load-module module-null-sink sink_name="$NULL_SINK_NAME" sink_properties=device.description="YTStream" >/dev/null
-fi
 
 [[ -s "$BG_FILE" ]] || { echo "[svc_stream] ERROR: background video missing: $BG_FILE"; exit 1; }
 
@@ -30,7 +24,7 @@ fi
 ffmpeg -hide_banner -loglevel info \
   -re -stream_loop -1 -thread_queue_size 2048 -i "$BG_FILE" \
   -re -thread_queue_size 1024 -framerate 1 -loop 1 -i "$ARTWORK_URL" \
-  -thread_queue_size 8192 -f pulse -i "$NULL_SINK_NAME.monitor" \
+  -thread_queue_size 8192 -f alsa -i "${ALSA_CAPTURE}" \
   -filter_complex "\
 [0:v]scale=${STREAM_WIDTH}:${STREAM_HEIGHT},setsar=1[v0]; \
 [v0][1:v]overlay=10:10:format=auto, \

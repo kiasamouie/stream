@@ -4,7 +4,6 @@ set -euo pipefail
 set -a
 source "$(dirname "$0")/.env"
 set +a
-export PULSE_SERVER
 
 PLAYLIST_URL="${1:-${PLAYLIST_URL:-}}"
 if [[ -z "$PLAYLIST_URL" && -f "$PLAYLIST_FILE" ]]; then
@@ -15,16 +14,13 @@ if [[ -z "$PLAYLIST_URL" ]]; then
   exit 1
 fi
 
-# Wait until system PulseAudio is up
-until pactl info >/dev/null 2>&1; do
-  echo "[svc_audio] Waiting for PulseAudio system daemon..."
+# Wait for ALSA Loopback device
+until aplay -l | grep -q "Loopback"; do
+  echo "[svc_audio] Waiting for ALSA Loopback device..."
   sleep 2
 done
 
-# Ensure null sink exists (system mode)
-if ! pactl list short sinks | grep -q "$NULL_SINK_NAME"; then
-  pactl load-module module-null-sink sink_name="$NULL_SINK_NAME" sink_properties=device.description="YTStream" >/dev/null
-fi
+echo "[svc_audio] Starting MPV playback on ALSA loopback..."
 
 mpv \
   --no-config \
@@ -32,6 +28,7 @@ mpv \
   --ytdl=yes \
   --ytdl-format="bestaudio/best" \
   --loop-playlist=inf \
-  --ao=pulse --audio-device="pulse/$NULL_SINK_NAME" \
+  --ao=alsa --audio-device="alsa/${ALSA_PLAYBACK}" \
+  --alsa-buffer-time=50000 \
   --script="$METADATA_SCRIPT" \
   "$PLAYLIST_URL"
