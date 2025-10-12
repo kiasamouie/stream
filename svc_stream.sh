@@ -22,8 +22,8 @@ if [[ ! -s "$ARTWORK_FILE" ]]; then
 fi
 
 ffmpeg -hide_banner -loglevel info \
-  -stream_loop -1 -thread_queue_size 2048 -i "$BG_FILE" \
-  -thread_queue_size 1024 -framerate 1 -loop 1 -i "$ARTWORK_URL" \
+  -re -stream_loop -1 -thread_queue_size 2048 -i "$BG_FILE" \
+  -re -thread_queue_size 1024 -framerate 1 -loop 1 -i "$ARTWORK_URL" \
   -thread_queue_size 65536 -f alsa -itsoffset 0.1 -ar 48000 -i "${ALSA_CAPTURE}" \
   -filter_complex "\
 [0:v]scale=${STREAM_WIDTH}:${STREAM_HEIGHT},setsar=1[v0]; \
