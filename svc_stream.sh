@@ -22,9 +22,9 @@ if [[ ! -s "$ARTWORK_FILE" ]]; then
 fi
 
 ffmpeg -hide_banner -loglevel info \
-  -re -stream_loop -1 -thread_queue_size 2048 -i "$BG_FILE" \
-  -re -thread_queue_size 1024 -framerate 1 -loop 1 -i "$ARTWORK_URL" \
-  -thread_queue_size 8192 -f alsa -i "${ALSA_CAPTURE}" \
+  -stream_loop -1 -thread_queue_size 2048 -i "$BG_FILE" \
+  -thread_queue_size 1024 -framerate 1 -loop 1 -i "$ARTWORK_URL" \
+  -thread_queue_size 65536 -f alsa -itsoffset 0.1 -ar 48000 -i "${ALSA_CAPTURE}" \
   -filter_complex "\
 [0:v]scale=${STREAM_WIDTH}:${STREAM_HEIGHT},setsar=1[v0]; \
 [v0][1:v]overlay=10:10:format=auto, \
@@ -33,5 +33,6 @@ drawtext=fontfile=${FONT_PATH}:textfile=${TEXT_FILE}:reload=1:fontsize=24:fontco
   -c:v libx264 -pix_fmt yuv420p -preset $X264_PRESET -b:v $VIDEO_BR \
   -x264-params keyint=$GOP:min-keyint=$FPS:scenecut=0 \
   -g $GOP -r $FPS \
-  -c:a aac -b:a $AUDIO_BR \
+  -c:a aac -b:a $AUDIO_BR -threads:a 1 -async 1 \
+  -fflags +nobuffer -flush_packets 0 \
   -f flv "$YOUTUBE_RTMP"

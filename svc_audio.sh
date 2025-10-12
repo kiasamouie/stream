@@ -29,6 +29,11 @@ mpv \
   --ytdl-format="bestaudio/best" \
   --loop-playlist=inf \
   --ao=alsa --audio-device="alsa/${ALSA_PLAYBACK}" \
-  --alsa-buffer-time=50000 \
+  --alsa-buffer-time=500000 \
+  --alsa-periods=8 \
+  --audio-samplerate=48000 \
+  --audio-buffer=0.5 \
+  --cache=yes \
+  --cache-secs=10 \
   --script="$METADATA_SCRIPT" \
   "$PLAYLIST_URL"
