@@ -34,6 +34,5 @@ drawtext=fontfile=${FONT_PATH}:textfile=${TEXT_FILE}:reload=1:fontsize=24:fontco
   -g $GOP -r $FPS \
   -c:a aac -b:a $AUDIO_BR -threads:a 1 -async 1 \
   -fflags +nobuffer -flush_packets 0 \
-  -flags +low_delay -timeout 5000000 \
-  -reconnect 1 -reconnect_streamed 1 -reconnect_on_network_error 1 \
+  -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 \
   -f flv "$YOUTUBE_RTMP"
