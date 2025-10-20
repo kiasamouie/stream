@@ -6,6 +6,7 @@ User=ytstream
 WorkingDirectory=/opt/ytstream
 ExecStart=/opt/ytstream/svc_stream.sh
 Restart=always
+RestartSec=10
 
 [Install]
 WantedBy=default.target

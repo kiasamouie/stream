@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -uo pipefail
 
 set -a
 source "$(dirname "$0")/.env"
@@ -22,18 +22,24 @@ done
 
 echo "[svc_audio] Starting MPV playback on ALSA loopback..."
 
-mpv \
-  --no-config \
-  --no-video \
-  --ytdl=yes \
-  --ytdl-format="bestaudio/best" \
-  --loop-playlist=inf \
-  --ao=alsa --audio-device="alsa/${ALSA_PLAYBACK}" \
-  --alsa-buffer-time=500000 \
-  --alsa-periods=8 \
-  --audio-samplerate=48000 \
-  --audio-buffer=0.5 \
-  --cache=yes \
-  --cache-secs=10 \
-  --script="$METADATA_SCRIPT" \
-  "$PLAYLIST_URL"
+while true; do
+  mpv \
+    --no-config \
+    --no-video \
+    --ytdl=yes \
+    --ytdl-format="bestaudio/best" \
+    --loop-playlist=inf \
+    --ao=alsa --audio-device="alsa/${ALSA_PLAYBACK}" \
+    --alsa-buffer-time=500000 \
+    --alsa-periods=8 \
+    --audio-samplerate=48000 \
+    --audio-buffer=0.5 \
+    --cache=yes \
+    --cache-secs=10 \
+    --script="$METADATA_SCRIPT" \
+    --idle=yes \
+    "$PLAYLIST_URL"
+
+  echo "[svc_audio] MPV exited — restarting in 3 seconds..."
+  sleep 3
+done
