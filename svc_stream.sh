@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -uo pipefail
+set -u
 
 set -a
 source "$(dirname "$0")/.env"
