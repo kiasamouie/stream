@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================
-#  YTStream Diagnostic Script (lightweight version)
-#  Checks audio group, ALSA loopback, and streaming services
+#  YTStream Diagnostic Script (filtered + limited version)
+#  Focused on relevant errors from ffmpeg/mpv with capped lines
 # ============================================================
 
 set -e
@@ -66,7 +66,7 @@ else
 fi
 
 # ------------------------------------------------------------
-# 🔊 Loopback audio activity check
+# 🔊 Loopback audio activity
 # ------------------------------------------------------------
 header "🔊 Loopback Audio Activity"
 
@@ -77,18 +77,22 @@ capture_status=$(grep "state" /proc/asound/Loopback/pcm1c/sub0/status 2>/dev/nul
 [[ "$capture_status" == "RUNNING" ]] && echo -e "${GREEN}✔ Capture stream active${RESET}" || echo -e "${RED}✘ No active capture stream${RESET}"
 
 # ------------------------------------------------------------
-# 🧾 Logs (clearer split + context)
+# 🧾 Focused Service Logs (errors + limited output)
 # ------------------------------------------------------------
-header "🧾 Service Logs (last 30 minutes)"
+header "🧾 Service Logs (last 30 minutes — filtered and limited)"
 
 if [ "$(id -u)" -eq 0 ]; then
-  echo -e "${CYAN}▶ ytstream-stream.service${RESET}"
+  echo -e "${CYAN}▶ ytstream-stream.service (ffmpeg)${RESET}"
   echo "------------------------------------------------------------"
-  journalctl -u ytstream-stream.service --since "30 minutes ago" -o cat | tail -n 30 || echo "No recent logs."
+  sudo journalctl -u ytstream-stream.service --since "30 minutes ago" -o cat | \
+    grep -A5 -B5 -E "Error|failed|reset|IO error|Connection|Broken pipe" | tail -n 40 || \
+    echo "No errors found in stream service."
 
-  echo -e "\n${CYAN}▶ ytstream-audio.service${RESET}"
+  echo -e "\n${CYAN}▶ ytstream-audio.service (mpv)${RESET}"
   echo "------------------------------------------------------------"
-  journalctl -u ytstream-audio.service --since "30 minutes ago" -o cat | tail -n 30 || echo "No recent logs."
+  sudo journalctl -u ytstream-audio.service --since "30 minutes ago" -o cat | \
+    grep -A3 -B3 -E "Error|failed|reset|IO error|Connection|Broken pipe" | tail -n 40 || \
+    echo "No errors found in audio service."
 else
   echo -e "${YELLOW}⚠ Run this script with sudo to view service logs${RESET}"
   echo "   sudo /opt/ytstream/diag.sh"
