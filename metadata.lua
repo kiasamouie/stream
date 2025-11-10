@@ -15,6 +15,32 @@ local function current_entry_url()
     return http_in_edl
 end
 
+-- Select the most reliable thumbnail (SoundCloud structure aware)
+local function select_best_thumbnail(thumbnails)
+    if not thumbnails or #thumbnails == 0 then return nil end
+
+    local preferred_ids = {"t300x300", "large", "t500x500", "original"}
+
+    -- Pass 1: Look for named IDs like t300x300 or large
+    for _, pref in ipairs(preferred_ids) do
+        for _, thumb in ipairs(thumbnails) do
+            if thumb.id == pref or (thumb.url and thumb.url:find(pref, 1, true)) then
+                return thumb.url, thumb.width or 300
+            end
+        end
+    end
+
+    -- Pass 2: fallback to the largest available width
+    local best = thumbnails[1]
+    for _, t in ipairs(thumbnails) do
+        if t.width and (not best.width or t.width > best.width) then
+            best = t
+        end
+    end
+
+    return best.url, best.width or 300
+end
+
 local function update_metadata()
     local title = mp.get_property("media-title") or ""
     local url = current_entry_url()
@@ -39,9 +65,14 @@ local function update_metadata()
         return
     end
 
-    -- Determine final title/artist
-    local json_title    = json.title or title or "Unknown Title"
-    local json_uploader = json.uploader or "Unknown Artist"
+    -- Handle both playlist entries and single tracks
+    local entry = json
+    if json.entries and #json.entries > 0 then
+        entry = json.entries[1]
+    end
+
+    local json_title    = entry.title or title or "Unknown Title"
+    local json_uploader = entry.uploader or "Unknown Artist"
 
     -- Write nowplaying.txt as "<Artist> - <Title>"
     do
@@ -54,52 +85,25 @@ local function update_metadata()
         end
     end
 
-    -- Choose artwork thumbnail near 100x100
-    if json.thumbnails and #json.thumbnails > 0 then
-        local best_url = nil
-        local best_size = nil
-
-        -- pass 1: exact 100x100
-        for _, thumb in ipairs(json.thumbnails) do
-            if thumb.width == 100 or thumb.height == 100 then
-                best_url = thumb.url
-                best_size = thumb.width
-                break
-            end
-        end
-
-        -- pass 2: smallest >=100
-        if not best_url then
-            for _, thumb in ipairs(json.thumbnails) do
-                if thumb.width >= 100 and (not best_size or thumb.width < best_size) then
-                    best_url = thumb.url
-                    best_size = thumb.width
-                end
-            end
-        end
-
-        -- pass 3: largest available
-        if not best_url then
-            for _, thumb in ipairs(json.thumbnails) do
-                if not best_size or thumb.width > best_size then
-                    best_url = thumb.url
-                    best_size = thumb.width
-                end
-            end
-        end
-
+    -- Choose artwork thumbnail near 200x200
+    if entry.thumbnails and #entry.thumbnails > 0 then
+        local best_url, best_size = select_best_thumbnail(entry.thumbnails)
         if best_url then
             local tmp = "/opt/ytstream/assets/.artwork.tmp"
             utils.subprocess({ args = {"curl", "-fsSL", "-o", tmp, best_url} })
-            if best_size ~= 100 then
-                utils.subprocess({ args = {"mogrify", "-resize", "100x100", tmp} })
+
+            -- Resize only if larger than 200px
+            if best_size and best_size > 200 then
+                utils.subprocess({ args = {"mogrify", "-resize", "200x200", tmp} })
             end
+
             utils.subprocess({ args = {"mv", "-f", tmp, "/opt/ytstream/assets/artwork.jpg"} })
         else
             mp.msg.warn("No usable thumbnails found")
         end
     else
-        mp.msg.warn("No thumbnails in yt-dlp JSON")
+        mp.msg.warn("No thumbnails in yt-dlp JSON — generating blank image")
+        utils.subprocess({ args = {"convert", "-size", "200x200", "xc:black", "/opt/ytstream/assets/artwork.jpg"} })
     end
 end
 
