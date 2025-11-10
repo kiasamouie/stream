@@ -29,11 +29,13 @@ ffmpeg -hide_banner -loglevel info \
 [v0][1:v]overlay=10:10:format=auto:eval=frame, \
 drawtext=fontfile=${FONT_PATH}:textfile=${TEXT_FILE}:reload=1:fontsize=24:fontcolor=white:shadowx=2:shadowy=2:x=120:y=15[outv]" \
   -map "[outv]" -map 2:a \
-  -c:v libx264 -pix_fmt yuv420p -preset $X264_PRESET -b:v $VIDEO_BR \
-  -x264-params keyint=$GOP:min-keyint=$FPS:scenecut=0 \
-  -g $GOP -r $FPS \
-  -c:a aac -b:a $AUDIO_BR -threads:a 1 -async 1 \
+  -c:v libx264 -pix_fmt yuv420p -preset "$X264_PRESET" \
+  -b:v "$VIDEO_BR" -maxrate "$VIDEO_BR" -bufsize "$BUF_SIZE" \
+  -x264-params keyint="$GOP":min-keyint="$FPS":scenecut=0 \
+  -g "$GOP" -r "$FPS" \
+  -c:a aac -b:a "$AUDIO_BR" -threads:a 1 -async 1 \
   -fflags +nobuffer -flush_packets 0 \
   -fflags +genpts -use_wallclock_as_timestamps 1 \
-  -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 \
+  -flvflags +no_duration_filesize \
+  -rw_timeout 15000000 \
   -f flv "$YOUTUBE_RTMP"
