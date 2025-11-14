@@ -15,6 +15,29 @@ local function current_entry_url()
     return http_in_edl
 end
 
+-- === Python-equivalent sanitize() ===
+local function sanitize(text)
+    if not text or text == "" then return text end
+
+    -- Normalize spacing and remove bracketed content
+    text = text:gsub("%b[]", "")
+    text = text:gsub("%b()", "")
+
+    -- Remove problematic punctuation
+    local chars = {"'", ":", ",", ";", "=", "#", "/", '"', "\\"}
+    for _, ch in ipairs(chars) do
+        text = text:gsub(ch, "")
+    end
+
+    -- Remove non-ASCII characters
+    text = text:gsub("[^\x00-\x7F]", "")
+
+    -- Collapse whitespace and trim - _ and spaces
+    text = text:gsub("%s+", " "):gsub("^[%s%-_]+", ""):gsub("[%s%-_]+$", "")
+
+    return text
+end
+
 -- Select the most reliable thumbnail (SoundCloud structure aware)
 local function select_best_thumbnail(thumbnails)
     if not thumbnails or #thumbnails == 0 then return nil end
@@ -73,6 +96,9 @@ local function update_metadata()
 
     local json_title    = entry.title or title or "Unknown Title"
     local json_uploader = entry.uploader or "Unknown Artist"
+
+    -- ✅ Apply sanitization to the song title only
+    json_title = sanitize(json_title)
 
     -- Write nowplaying.txt as "<Artist> - <Title>"
     do
