@@ -26,8 +26,8 @@ ffmpeg -hide_banner -loglevel info \
   -thread_queue_size 65536 -f alsa -itsoffset 0.1 -ar 48000 -i "${ALSA_CAPTURE}" \
   -filter_complex "\
 [0:v]scale=${STREAM_WIDTH}:${STREAM_HEIGHT},setsar=1[v0]; \
-[v0][1:v]overlay=10:10:format=auto:eval=frame, \
-drawtext=fontfile=${FONT_PATH}:textfile=${TEXT_FILE}:reload=1:fontsize=48:fontcolor=white:shadowx=2:shadowy=2:font=bold:x=230:y=25[outv]" \
+[v0][1:v]overlay=78:812:format=auto:eval=frame, \
+drawtext=fontfile=${FONT_PATH}:textfile=${TEXT_FILE}:reload=1:fontsize=40:fontcolor=white:shadowcolor=black@0.6:shadowx=2:shadowy=2:font=bold:x=250:y=850[outv]" \
   -map "[outv]" -map 2:a \
   -c:v libx264 -pix_fmt yuv420p -preset "$X264_PRESET" \
   -b:v "$VIDEO_BR" -maxrate "$VIDEO_BR" -bufsize "$BUF_SIZE" \

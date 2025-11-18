@@ -28,6 +28,7 @@ while true; do
     --no-video \
     --ytdl=yes \
     --ytdl-format="bestaudio/best" \
+    --shuffle \
     --loop-playlist=inf \
     --ao=alsa --audio-device="alsa/${ALSA_PLAYBACK}" \
     --alsa-buffer-time=500000 \

@@ -15,7 +15,6 @@ local function current_entry_url()
     return http_in_edl
 end
 
--- === Python-equivalent sanitize() ===
 local function sanitize(text)
     if not text or text == "" then return text end
 
@@ -29,8 +28,10 @@ local function sanitize(text)
         text = text:gsub(ch, "")
     end
 
-    -- Remove non-ASCII characters
-    text = text:gsub("[^\x00-\x7F]", "")
+    -- Remove emojis and extended unicode symbols
+    text = text:gsub("[%z\1-\127\194-\244][\128-\191]*", function(char)
+        return char:match("^[ %w%p]+$") and char or ""
+    end)
 
     -- Collapse whitespace and trim - _ and spaces
     text = text:gsub("%s+", " "):gsub("^[%s%-_]+", ""):gsub("[%s%-_]+$", "")
@@ -104,7 +105,7 @@ local function update_metadata()
     do
         local f = io.open("/opt/ytstream/assets/nowplaying.txt", "w")
         if f then
-            f:write(string.format("%s - %s", json_uploader, json_title))
+            f:write(string.format("%s\n%s", json_uploader, json_title))
             f:close()
         else
             mp.msg.error("Failed to open nowplaying.txt for writing")
@@ -120,7 +121,7 @@ local function update_metadata()
 
             -- Resize only if larger than 200px
             if best_size and best_size > 200 then
-                utils.subprocess({ args = {"mogrify", "-resize", "200x200", tmp} })
+                utils.subprocess({ args = {"mogrify", "-resize", "150x150", tmp} })
             end
 
             utils.subprocess({ args = {"mv", "-f", tmp, "/opt/ytstream/assets/artwork.jpg"} })
